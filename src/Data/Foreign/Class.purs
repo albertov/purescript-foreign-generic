@@ -6,7 +6,7 @@ import Data.Array ((..), zipWith, length)
 import Data.Bifunctor (lmap)
 import Data.Foreign (F, Foreign, ForeignError(ErrorAtIndex), readArray, readBoolean, readChar, readInt, readNumber, readString, toForeign)
 import Data.Foreign.NullOrUndefined (NullOrUndefined(..), readNullOrUndefined, undefined)
-import Data.Maybe (maybe)
+import Data.Maybe (Maybe, maybe)
 import Data.StrMap as StrMap
 import Data.Traversable (sequence)
 import Data.Foreign.Internal (readStrMap)
@@ -102,6 +102,13 @@ instance decodeNullOrUndefined :: Decode a => Decode (NullOrUndefined a) where
 
 instance encodeNullOrUndefined :: Encode a => Encode (NullOrUndefined a) where
   encode (NullOrUndefined a) = maybe undefined encode a
+
+instance decodeMaybe :: Decode a => Decode (Maybe a) where
+  decode v = do NullOrUndefined v' <- readNullOrUndefined decode v
+                pure v'
+
+instance encodeMaybe :: Encode a => Encode (Maybe a) where
+  encode = maybe undefined encode
 
 instance strMapEncode :: Encode v => Encode (StrMap.StrMap v) where 
   encode = toForeign <<< StrMap.mapWithKey (\_ -> encode)
