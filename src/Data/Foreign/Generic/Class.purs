@@ -6,7 +6,7 @@ import Control.Alt ((<|>))
 import Control.Monad.Except (mapExcept)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Foreign (F, Foreign, ForeignError(..), fail, readArray, readString, toForeign)
+import Data.Foreign (F, Foreign, ForeignError(..), fail, readArray, readString, toForeign, isUndefined)
 import Data.Foreign.Class (class Encode, class Decode, encode, decode)
 import Data.Foreign.Generic.Types (Options, SumEncoding(..))
 import Data.Foreign.Index (index)
@@ -56,7 +56,7 @@ instance genericDecodeConstructor
         then Constructor <$> readArguments f
         else case opts.sumEncoding of
                TaggedObject { tagFieldName, contentsFieldName, constructorTagTransform } -> do
-                 tag <- mapExcept (lmap (map (ErrorAtProperty contentsFieldName))) do
+                 tag <- mapExcept (lmap (map (ErrorAtProperty tagFieldName))) do
                    tag <- index f tagFieldName >>= readString
                    let expected = constructorTagTransform ctorName
                    unless (constructorTagTransform tag == expected) $
@@ -64,6 +64,13 @@ instance genericDecodeConstructor
                    pure tag
                  args <- mapExcept (lmap (map (ErrorAtProperty contentsFieldName)))
                            (index f contentsFieldName >>= readArguments)
+                 pure (Constructor args)
+               ObjectWithSingleField -> do
+                 ob <- index f ctorName
+                 when (isUndefined ob) $
+                   fail (ForeignError ("Expected " <> show ctorName <> " key"))
+                 args <- mapExcept (lmap (map (ErrorAtProperty ctorName)))
+                                   (readArguments ob)
                  pure (Constructor args)
     where
       ctorName = reflectSymbol (SProxy :: SProxy name)
@@ -95,6 +102,9 @@ instance genericEncodeConstructor
                TaggedObject { tagFieldName, contentsFieldName, constructorTagTransform } ->
                  toForeign (S.singleton tagFieldName (toForeign $ constructorTagTransform ctorName)
                            `S.union` maybe S.empty (S.singleton contentsFieldName) (encodeArgsArray args))
+               ObjectWithSingleField ->
+                 let o = maybe (toForeign S.empty) id (encodeArgsArray args)
+                 in toForeign (S.singleton ctorName o)
     where
       ctorName = reflectSymbol (SProxy :: SProxy name)
 

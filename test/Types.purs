@@ -6,6 +6,7 @@ import Data.Bifunctor (class Bifunctor)
 import Data.Foreign (ForeignError(ForeignError), fail, readArray, toForeign)
 import Data.Foreign.Class (class Encode, class Decode, encode, decode)
 import Data.Foreign.Generic (defaultOptions, genericDecode, genericEncode)
+import Data.Foreign.Generic.Types (Options, SumEncoding(..))
 import Data.Foreign.Generic.EnumEncoding (defaultGenericEnumOptions, genericDecodeEnum, genericEncodeEnum)
 import Data.Foreign.NullOrUndefined (NullOrUndefined)
 import Data.Generic.Rep (class Generic)
@@ -73,6 +74,40 @@ instance decodeIntList :: Decode IntList where
 instance encodeIntList :: Encode IntList where
   encode x = genericEncode (defaultOptions { unwrapSingleConstructors = true }) x
 
+-- | Another example of an ADT with nullary constructors
+data IntList2 = Nil2 | Cons2 Int IntList2
+
+derive instance genericIntList2 :: Generic IntList2 _
+
+instance showIntList2 :: Show IntList2 where
+  show x = genericShow x
+
+instance eqIntList2 :: Eq IntList2 where
+  eq x y = genericEq x y
+
+instance decodeIntList2 :: Decode IntList2 where
+  decode x = genericDecode objectWithSingleFieldOpts x
+
+instance encodeIntList2 :: Encode IntList2 where
+  encode x = genericEncode objectWithSingleFieldOpts x
+
+-- | Another example of an ADT with nullary constructors
+data IntList3 = Cons3 Int IntList3 | Nil3
+
+derive instance genericIntList3 :: Generic IntList3 _
+
+instance showIntList3 :: Show IntList3 where
+  show x = genericShow x
+
+instance eqIntList3 :: Eq IntList3 where
+  eq x y = genericEq x y
+
+instance decodeIntList3 :: Decode IntList3 where
+  decode x = genericDecode objectWithSingleFieldOpts x
+
+instance encodeIntList3 :: Encode IntList3 where
+  encode x = genericEncode objectWithSingleFieldOpts x
+
 -- | Balanced binary leaf trees
 data Tree a = Leaf a | Branch (Tree (TupleArray a a))
 
@@ -114,3 +149,28 @@ instance dFruit :: Decode Fruit where
   decode = genericDecodeEnum defaultGenericEnumOptions
 instance eFruit :: Encode Fruit where
   encode = genericEncodeEnum defaultGenericEnumOptions
+
+-- | Another example record
+newtype RecordTest2 = RecordTest2
+  { foo :: Int
+  , bar :: String
+  , lst :: IntList2
+  }
+
+derive instance genericRecordTest2 :: Generic RecordTest2 _
+
+instance showRecordTest2 :: Show RecordTest2 where
+  show x = genericShow x
+
+instance eqRecordTest2 :: Eq RecordTest2 where
+  eq x y = genericEq x y
+
+objectWithSingleFieldOpts :: Options
+objectWithSingleFieldOpts = defaultOptions { sumEncoding = ObjectWithSingleField
+                                           , unwrapSingleConstructors = true}
+
+instance decodeRecordTest2 :: Decode RecordTest2 where
+  decode x = genericDecode objectWithSingleFieldOpts x
+
+instance encodeRecordTest2 :: Encode RecordTest2 where
+  encode x = genericEncode objectWithSingleFieldOpts x

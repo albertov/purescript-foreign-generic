@@ -21,7 +21,9 @@ import Data.String (toLower, toUpper)
 import Data.Tuple (Tuple(..))
 import Global.Unsafe (unsafeStringify)
 import Test.Assert (assert, assert', ASSERT)
-import Test.Types (Fruit(..), IntList(..), RecordTest(..), Tree(..), TupleArray(..), UndefinedTest(..))
+import Test.Types ( Fruit(..), IntList(..), RecordTest(..), Tree(..)
+                  , TupleArray(..), UndefinedTest(..), IntList2(..)
+                  , IntList3(..), RecordTest2(..))
 
 buildTree :: forall a. (a -> TupleArray a a) -> Int -> a -> Tree a
 buildTree _ 0 a = Leaf a
@@ -54,6 +56,7 @@ testRoundTrip x = do
 testGenericRoundTrip
   :: ∀ a r eff
    . Eq a
+  => Show a
   => Generic a r
   => GenericDecode r
   => GenericEncode r
@@ -65,8 +68,10 @@ testGenericRoundTrip
          ) Unit
 testGenericRoundTrip opts x = do
   let json = genericEncodeJSON opts x
+      decoded = runExcept (genericDecodeJSON opts json) 
   log json
-  case runExcept (genericDecodeJSON opts json) of
+  log (show decoded)
+  case decoded of
     Right y -> assert (x == y)
     Left err -> throw (show err)
 
@@ -122,5 +127,11 @@ main = do
   testUnaryConstructorLiteral
   let opts = defaultOptions { fieldTransform = toUpper }
   testGenericRoundTrip opts (RecordTest { foo: 1, bar: "test", baz: 'a' })
+  let optsOWSF = defaultOptions { sumEncoding = ObjectWithSingleField }
+  testGenericRoundTrip optsOWSF (RecordTest { foo: 1, bar: "test", baz: 'a' })
+  testGenericRoundTrip optsOWSF (Cons2 1 (Cons2 2 (Cons2 3 Nil2)))
+  testGenericRoundTrip optsOWSF (Cons3 1 (Cons3 2 (Cons3 3 Nil3)))
+  testGenericRoundTrip optsOWSF (Cons3 1 (Cons3 2 (Cons3 3 Nil3)))
+  testGenericRoundTrip optsOWSF (RecordTest2 { foo: 1, bar: "test", lst: (Cons2 1 (Cons2 2 (Cons2 3 Nil2))) })
 
 
