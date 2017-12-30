@@ -5,7 +5,7 @@ import Control.Monad.Except (mapExcept, throwError)
 import Data.Array ((..), zipWith, length, index)
 import Data.Tuple (Tuple(..))
 import Data.Bifunctor (lmap)
-import Data.Foreign (F, Foreign, ForeignError(ErrorAtIndex, ForeignError), readArray, readBoolean, readChar, readInt, readNumber, readString, toForeign)
+import Data.Foreign (F, Foreign, ForeignError(ErrorAtIndex, ForeignError), readArray, readBoolean, readChar, readInt, readNumber, readString, toForeign, isNull, isUndefined)
 import Data.Foreign.NullOrUndefined (NullOrUndefined(..), readNullOrUndefined, undefined)
 import Data.List.NonEmpty as NEL
 import Data.Maybe (Maybe, maybe)
@@ -129,3 +129,12 @@ instance decodeTuple :: (Decode a, Decode b) => Decode (Tuple a b) where
 
 instance encodeTuple :: (Encode a, Encode b) => Encode (Tuple a b) where
   encode (Tuple a b) = toForeign [encode a, encode b]
+
+
+instance decodeUnit :: Decode Unit where
+  decode x | isNull x || isUndefined x = pure unit
+  decode _ = throwError $ NEL.singleton
+           $ ForeignError "Expected a null or undefined"
+
+instance encodeUnit :: Encode Unit where
+  encode _ = undefined
