@@ -3,6 +3,7 @@ module Test.Types where
 import Prelude
 
 import Data.Bifunctor (class Bifunctor)
+import Data.Maybe (Maybe)
 import Data.Foreign (ForeignError(ForeignError), fail, readArray, toForeign)
 import Data.Foreign.Class (class Encode, class Decode, encode, decode)
 import Data.Foreign.Generic (defaultOptions, genericDecode, genericEncode)
@@ -152,8 +153,8 @@ instance eFruit :: Encode Fruit where
 
 -- | Another example record
 newtype RecordTest2 = RecordTest2
-  { foo :: Int
-  , bar :: String
+  { foo :: Maybe Int
+  , bar :: Maybe String
   , lst :: IntList2
   }
 

@@ -97,13 +97,13 @@ instance genericEncodeConstructor
   => GenericEncode (Constructor name rep) where
   encodeOpts opts (Constructor args) =
       if opts.unwrapSingleConstructors
-        then maybe (toForeign []) toForeign (encodeArgsArray args)
+        then maybe (toForeign {}) toForeign (encodeArgsArray args)
         else case opts.sumEncoding of
                TaggedObject { tagFieldName, contentsFieldName, constructorTagTransform } ->
                  toForeign (S.singleton tagFieldName (toForeign $ constructorTagTransform ctorName)
                            `S.union` maybe S.empty (S.singleton contentsFieldName) (encodeArgsArray args))
                ObjectWithSingleField ->
-                 let o = maybe (toForeign S.empty) id (encodeArgsArray args)
+                 let o = maybe (toForeign []) id (encodeArgsArray args)
                  in toForeign (S.singleton ctorName o)
     where
       ctorName = reflectSymbol (SProxy :: SProxy name)
