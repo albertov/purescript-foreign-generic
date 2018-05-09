@@ -3,6 +3,7 @@ module Data.Foreign.Class where
 import Prelude
 import Control.Monad.Except (mapExcept, throwError)
 import Data.Array ((..), zipWith, length, index)
+import Data.Const (Const(..))
 import Data.Tuple (Tuple(..))
 import Data.Bifunctor (lmap)
 import Data.Foreign (F, Foreign, ForeignError(ErrorAtIndex, ForeignError), readArray, readBoolean, readChar, readInt, readNumber, readString, toForeign, isNull, isUndefined)
@@ -60,6 +61,26 @@ instance arrayDecode :: Decode a => Decode (Array a) where
 instance strMapDecode :: (Decode v) => Decode (StrMap.StrMap v) where
   decode = sequence <<< StrMap.mapWithKey (\_ -> decode) <=< readStrMap
 
+instance decodeTuple :: (Decode a, Decode b) => Decode (Tuple a b) where
+  decode v = readArray v >>= \ arr -> do
+    a <- maybe (noIndexError 0) (readElement 0) (arr `index` 0)
+    b <- maybe (noIndexError 1) (readElement 1) (arr `index` 1)
+    pure (Tuple a b)
+    where
+      noIndexError :: forall x. Int -> F x
+      noIndexError i = throwError $ NEL.singleton $
+                       ForeignError ("Expected an element at index " <> show i)
+      readElement :: forall x. Decode x => Int -> Foreign -> F x
+      readElement i value = mapExcept (lmap (map (ErrorAtIndex i))) (decode value)
+
+instance decodeUnit :: Decode Unit where
+  decode x | isNull x || isUndefined x = pure unit
+  decode _ = throwError $ NEL.singleton
+           $ ForeignError "Expected a null or undefined"
+
+instance constDecode :: Decode a => Decode (Const a b) where
+  decode = map Const <<< decode
+
 -- | The `Encode` class is used to generate encoding functions
 -- | of the form `a -> Foreign` using `generics-rep` deriving.
 -- |
@@ -115,26 +136,12 @@ instance encodeMaybe :: Encode a => Encode (Maybe a) where
 instance strMapEncode :: Encode v => Encode (StrMap.StrMap v) where 
   encode = toForeign <<< StrMap.mapWithKey (\_ -> encode)
 
-instance decodeTuple :: (Decode a, Decode b) => Decode (Tuple a b) where
-  decode v = readArray v >>= \ arr -> do
-    a <- maybe (noIndexError 0) (readElement 0) (arr `index` 0)
-    b <- maybe (noIndexError 1) (readElement 1) (arr `index` 1)
-    pure (Tuple a b)
-    where
-      noIndexError :: forall x. Int -> F x
-      noIndexError i = throwError $ NEL.singleton $
-                       ForeignError ("Expected an element at index " <> show i)
-      readElement :: forall x. Decode x => Int -> Foreign -> F x
-      readElement i value = mapExcept (lmap (map (ErrorAtIndex i))) (decode value)
 
 instance encodeTuple :: (Encode a, Encode b) => Encode (Tuple a b) where
   encode (Tuple a b) = toForeign [encode a, encode b]
 
-
-instance decodeUnit :: Decode Unit where
-  decode x | isNull x || isUndefined x = pure unit
-  decode _ = throwError $ NEL.singleton
-           $ ForeignError "Expected a null or undefined"
-
 instance encodeUnit :: Encode Unit where
   encode _ = undefined
+
+instance encodeConst :: Encode a => Encode (Const a b) where
+  encode (Const a) = encode a
