@@ -1,18 +1,19 @@
 module Data.Foreign.Class where
 
 import Prelude
+
 import Control.Monad.Except (mapExcept, throwError)
-import Data.Array ((..), zipWith, length, index)
-import Data.Const (Const(..))
-import Data.Tuple (Tuple(..))
+import Data.Array ((..), zipWith, length, index, null)
 import Data.Bifunctor (lmap)
-import Data.Foreign (F, Foreign, ForeignError(ErrorAtIndex, ForeignError), readArray, readBoolean, readChar, readInt, readNumber, readString, toForeign, isNull, isUndefined)
+import Data.Const (Const(..))
+import Data.Foreign (F, Foreign, ForeignError(ErrorAtIndex, ForeignError), isNull, isUndefined, readArray, readBoolean, readChar, readInt, readNumber, readString, toForeign)
+import Data.Foreign.Internal (readStrMap)
 import Data.Foreign.NullOrUndefined (NullOrUndefined(..), readNullOrUndefined, undefined)
 import Data.List.NonEmpty as NEL
 import Data.Maybe (Maybe, maybe)
 import Data.StrMap as StrMap
 import Data.Traversable (sequence)
-import Data.Foreign.Internal (readStrMap)
+import Data.Tuple (Tuple(..))
 
 -- | The `Decode` class is used to generate decoding functions
 -- | of the form `Foreign -> F a` using `generics-rep` deriving.
@@ -74,9 +75,11 @@ instance decodeTuple :: (Decode a, Decode b) => Decode (Tuple a b) where
       readElement i value = mapExcept (lmap (map (ErrorAtIndex i))) (decode value)
 
 instance decodeUnit :: Decode Unit where
-  decode x | isNull x || isUndefined x = pure unit
-  decode _ = throwError $ NEL.singleton
-           $ ForeignError "Expected a null or undefined"
+  decode x = readArray x >>= \arr ->
+              if null arr
+              then pure unit
+              else throwError $ NEL.singleton $
+                   ForeignError "Expected an empty array"
 
 instance constDecode :: Decode a => Decode (Const a b) where
   decode = map Const <<< decode
@@ -141,7 +144,7 @@ instance encodeTuple :: (Encode a, Encode b) => Encode (Tuple a b) where
   encode (Tuple a b) = toForeign [encode a, encode b]
 
 instance encodeUnit :: Encode Unit where
-  encode _ = undefined
+  encode _ = toForeign []
 
 instance encodeConst :: Encode a => Encode (Const a b) where
   encode (Const a) = encode a
